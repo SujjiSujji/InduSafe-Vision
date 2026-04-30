@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InduSafe Sentinel - Worker Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f5f5f5; }
+        .navbar { background: linear-gradient(135deg, #1a237e, #3949ab); }
+        .worker-card { transition: transform 0.2s; }
+        .worker-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/"><i class="bi bi-shield-check"></i> InduSafe Sentinel</a>
+            <div class="text-white">
+                <span class="badge bg-success">● System Online</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 bg-white vh-100 p-0">
+                <div class="nav flex-column">
+                    <a class="nav-link py-3" href="/">
+                        <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                    </a>
+                    <a class="nav-link active bg-light text-primary border-end border-primary border-3 py-3" href="/workers">
+                        <i class="bi bi-people me-2"></i>Workers
+                    </a>
+                    <a class="nav-link py-3" href="/violations">
+                        <i class="bi bi-exclamation-triangle me-2"></i>All Violations
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Worker Management</h2>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWorkerModal">
+                        <i class="bi bi-plus-circle me-2"></i>Add New Worker
+                    </button>
+                </div>
+
+                <div class="row">
+                    <!-- Worker Stats -->
+                    <div class="col-md-4 mb-4">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <h5>Total Workers</h5>
+                                <h2 id="total-workers">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-4">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <h5>Active Today</h5>
+                                <h2 id="active-workers">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-4">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body">
+                                <h5>With Violations</h5>
+                                <h2 id="workers-with-violations">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="search-input" placeholder="Search workers by name, ID, or department...">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workers List -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Registered Workers</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Employee ID</th>
+                                        <th>Department</th>
+                                        <th>Violations</th>
+                                        <th>Registered</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="workers-table">
+                                    <tr><td colspan="7" class="text-center">Loading workers...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Worker Modal -->
+    <div class="modal fade" id="addWorkerModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Worker</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-worker-form">
+                        <div class="mb-3">
+                            <label class="form-label">Full Name *</label>
+                            <input type="text" class="form-control" id="worker-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Employee ID *</label>
+                            <input type="text" class="form-control" id="worker-emp-id" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Department</label>
+                            <select class="form-select" id="worker-dept">
+                                <option value="General">General</option>
+                                <option value="Production">Production</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Quality Control">Quality Control</option>
+                                <option value="Warehouse">Warehouse</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="worker-email">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addWorker()">Add Worker</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div class="modal fade" id="qrModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Worker QR Code</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="qr-image" src="" alt="QR Code" class="img-fluid mb-3">
+                    <p class="text-muted small">Print and attach to helmet/ID card</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="printQR()">Print</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allWorkers = [];
+        let currentQRWorkerId = null;
+
+        // Load workers
+        async function loadWorkers() {
+            try {
+                console.log('Loading workers...');
+                const response = await fetch('/api/workers');
+                allWorkers = await response.json();
+                console.log('Workers loaded:', allWorkers.length);
+                
+                updateStats(allWorkers);
+                displayWorkers(allWorkers);
+            } catch (error) {
+                console.error('Error loading workers:', error);
+                document.getElementById('workers-table').innerHTML = 
+                    '<tr><td colspan="7" class="text-center text-danger">Error loading workers</td></tr>';
+            }
+        }
+
+        function updateStats(workers) {
+            document.getElementById('total-workers').textContent = workers.length;
+            const withViolations = workers.filter(w => w.violation_count > 0).length;
+            document.getElementById('workers-with-violations').textContent = withViolations;
+            document.getElementById('active-workers').textContent = workers.length; // Simplified
+        }
+
+        function displayWorkers(workers) {
+            const tbody = document.getElementById('workers-table');
+            
+            if (workers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No workers registered. Add your first worker!</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = workers.map(w => `
+                <tr class="worker-card">
+                    <td>${w.id}</td>
+                    <td><strong>${w.name}</strong></td>
+                    <td>${w.employee_id}</td>
+                    <td><span class="badge bg-secondary">${w.department}</span></td>
+                    <td>
+                        <span class="badge ${w.violation_count > 0 ? 'bg-danger' : 'bg-success'}">
+                            ${w.violation_count}
+                        </span>
+                    </td>
+                    <td>${new Date(w.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="showQR(${w.id})">
+                            <i class="bi bi-qr-code"></i> QR
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteWorker(${w.id}, '${w.name.replace(/'/g, "\\'")}')">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Add worker
+        async function addWorker() {
+            const name = document.getElementById('worker-name').value.trim();
+            const empId = document.getElementById('worker-emp-id').value.trim();
+            const dept = document.getElementById('worker-dept').value;
+            const email = document.getElementById('worker-email').value.trim();
+
+            if (!name || !empId) {
+                alert('Please fill in Name and Employee ID');
+                return;
+            }
+
+            const data = {
+                name: name,
+                employee_id: empId,
+                department: dept,
+                email: email || null,
+                qr_code: empId
+            };
+
+            try {
+                console.log('Adding worker:', data);
+                const response = await fetch('/api/workers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                console.log('Response:', result);
+
+                if (response.ok) {
+                    // Reset form
+                    document.getElementById('add-worker-form').reset();
+                    // Close modal
+                    bootstrap.Modal.getInstance(document.getElementById('addWorkerModal')).hide();
+                    // Reload workers
+                    loadWorkers();
+                    alert('Worker added successfully!');
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to add worker'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding worker: ' + error.message);
+            }
+        }
+
+        // Show QR Code
+        function showQR(workerId) {
+            currentQRWorkerId = workerId;
+            document.getElementById('qr-image').src = `/api/workers/${workerId}/qrcode`;
+            new bootstrap.Modal(document.getElementById('qrModal')).show();
+        }
+
+        // Print QR
+        function printQR() {
+            const img = document.getElementById('qr-image');
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head><title>Print QR Code</title></head>
+                <body style="text-align:center; padding:20px;">
+                    <img src="${img.src}" style="max-width:300px;">
+                    <p style="margin-top:20px; font-size:14px;">InduSafe Sentinel - Worker ID</p>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        // Search functionality
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filtered = allWorkers.filter(w => 
+                w.name.toLowerCase().includes(searchTerm) ||
+                w.employee_id.toLowerCase().includes(searchTerm) ||
+                w.department.toLowerCase().includes(searchTerm)
+            );
+            displayWorkers(filtered);
+        });
+
+        // Delete worker
+        async function deleteWorker(workerId, workerName) {
+            if (!confirm(`Are you sure you want to delete ${workerName}?\n\nThis will also delete all their violation records.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/workers/${workerId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('Worker deleted successfully!');
+                    loadWorkers();
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to delete worker'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error deleting worker: ' + error.message);
+            }
+        }
+
+        // Load on page load
+        loadWorkers();
+    </script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Violation Details - InduSafe Sentinel{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+                <li class="breadcrumb-item active">Violation #{{ violation_id }}</li>
+            </ol>
+        </nav>
+        <h2 class="mb-4">Violation Details</h2>
+    </div>
+</div>
+
+<div id="violation-content">
+    <!-- Content loaded by JavaScript -->
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading violation details...</p>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const violationId = {{ violation_id }};
+
+async function loadViolationDetails() {
+    try {
+        const response = await fetch(`/api/violations/${violationId}`);
+        
+        if (!response.ok) {
+            document.getElementById('violation-content').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Violation not found
+                </div>
+            `;
+            return;
+        }
+        
+        const violation = await response.json();
+        
+        document.getElementById('violation-content').innerHTML = `
+            <div class="row">
+                <!-- Evidence Image -->
+                <div class="col-lg-8 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-image"></i> Evidence</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            ${violation.image_path ? `
+                                <img src="/static/uploads/${violation.image_path}" 
+                                     alt="Violation Evidence" 
+                                     class="img-fluid w-100"
+                                     style="cursor: pointer;"
+                                     onclick="openImageModal('/static/uploads/${violation.image_path}')">
+                            ` : '<p class="text-muted text-center py-5">No image available</p>'}
+                        </div>
+                    </div>
+                    
+                    ${violation.video_path ? `
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="bi bi-film"></i> Video Evidence</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <video controls class="w-100">
+                                    <source src="/static/uploads/${violation.video_path}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <!-- Details Panel -->
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-info-circle"></i> Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="text-muted">Violation ID</td>
+                                    <td class="text-end"><strong>#${violation.id}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Type</td>
+                                    <td class="text-end">
+                                        <span class="badge bg-danger">
+                                            ${violation.violation_type.replace('_', ' ').toUpperCase()}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Status</td>
+                                    <td class="text-end">
+                                        <span class="badge ${violation.status === 'Open' ? 'bg-warning' : 'bg-success'}">
+                                            ${violation.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Timestamp</td>
+                                    <td class="text-end">${new Date(violation.timestamp).toLocaleString()}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Zone</td>
+                                    <td class="text-end">${violation.zone}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Confidence</td>
+                                    <td class="text-end">${(violation.confidence * 100).toFixed(1)}%</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Worker Info -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-person"></i> Worker Information</h5>
+                        </div>
+                        <div class="card-body">
+                            ${violation.worker_name ? `
+                                <div class="text-center mb-3">
+                                    <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                         style="width: 60px; height: 60px; font-size: 1.5rem;">
+                                        ${violation.worker_name.charAt(0).toUpperCase()}
+                                    </div>
+                                </div>
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td class="text-muted">Name</td>
+                                        <td class="text-end"><strong>${violation.worker_name}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Employee ID</td>
+                                        <td class="text-end">${violation.employee_id}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Department</td>
+                                        <td class="text-end">${violation.department || 'N/A'}</td>
+                                    </tr>
+                                </table>
+                            ` : `
+                                <div class="text-center text-muted py-3">
+                                    <i class="bi bi-question-circle" style="font-size: 2rem;"></i>
+                                    <p class="mt-2">Unknown Worker</p>
+                                    <small>Worker could not be identified via QR code</small>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-gear"></i> Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            ${violation.status === 'Open' ? `
+                                <button class="btn btn-success w-100 mb-2" onclick="acknowledgeViolation()">
+                                    <i class="bi bi-check-circle"></i> Acknowledge Violation
+                                </button>
+                            ` : `
+                                <div class="alert alert-success mb-0">
+                                    <i class="bi bi-check-circle-fill"></i> This violation has been acknowledged
+                                </div>
+                            `}
+                            
+                            ${violation.image_path ? `
+                                <a href="/static/uploads/${violation.image_path}" download 
+                                   class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-download"></i> Download Image
+                                </a>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading violation details:', error);
+        document.getElementById('violation-content').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> Error loading violation details
+            </div>
+        `;
+    }
+}
+
+async function acknowledgeViolation() {
+    try {
+        const response = await fetch(`/api/violations/${violationId}/acknowledge`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            loadViolationDetails(); // Refresh
+        }
+    } catch (error) {
+        console.error('Error acknowledging violation:', error);
+        alert('Error acknowledging violation');
+    }
+}
+
+function openImageModal(imageSrc) {
+    // Create modal dynamically
+    const modalHtml = `
+        <div class="modal fade" id="imageModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Evidence Image</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center p-0">
+                        <img src="${imageSrc}" class="img-fluid" style="max-height: 80vh;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('imageModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('imageModal')).show();
+}
+
+// Load on page load
+loadViolationDetails();
+</script>
+{% endblock %}

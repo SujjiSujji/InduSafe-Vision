@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InduSafe Sentinel - Supervisor Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f5f5f5; }
+        .navbar { background: linear-gradient(135deg, #1a237e, #3949ab); }
+        .stat-card { border-left: 4px solid; transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); }
+        .stat-card.danger { border-left-color: #d32f2f; }
+        .stat-card.warning { border-left-color: #f57c00; }
+        .stat-card.info { border-left-color: #3949ab; }
+        .stat-card.success { border-left-color: #388e3c; }
+        .live-feed { background: #000; border-radius: 8px; overflow: hidden; position: relative; }
+        .live-badge { position: absolute; top: 10px; left: 10px; background: #d32f2f; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .violation-row:hover { background-color: #f8f9fa; }
+        .status-open { background: #ffebee; color: #d32f2f; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .status-acknowledged { background: #e8f5e9; color: #388e3c; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/"><i class="bi bi-shield-check"></i> InduSafe Sentinel</a>
+            <div class="text-white">
+                <span class="badge bg-success">● System Online</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 bg-white vh-100 p-0">
+                <div class="nav flex-column">
+                    <a class="nav-link active bg-light text-primary border-end border-primary border-3 py-3" href="/">
+                        <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                    </a>
+                    <a class="nav-link py-3" href="/workers">
+                        <i class="bi bi-people me-2"></i>Workers
+                    </a>
+                    <a class="nav-link py-3" href="/violations">
+                        <i class="bi bi-exclamation-triangle me-2"></i>All Violations
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10 p-4">
+                <h2 class="mb-4">Supervisor Dashboard</h2>
+
+                <!-- Statistics Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card stat-card danger">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">Today's Violations</h6>
+                                        <h3 id="stat-today">0</h3>
+                                    </div>
+                                    <i class="bi bi-exclamation-triangle-fill text-danger fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stat-card warning">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">Open Violations</h6>
+                                        <h3 id="stat-open">0</h3>
+                                    </div>
+                                    <i class="bi bi-clock-history text-warning fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stat-card info">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">Total Violations</h6>
+                                        <h3 id="stat-total">0</h3>
+                                    </div>
+                                    <i class="bi bi-clipboard-data text-primary fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stat-card success">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">Workers Registered</h6>
+                                        <h3 id="stat-workers">0</h3>
+                                    </div>
+                                    <i class="bi bi-people-fill text-success fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Live Feed -->
+                    <div class="col-lg-8 mb-4">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="bi bi-camera-video me-2"></i>Live Monitoring</h5>
+                                <div>
+                                    <button id="camera-toggle-btn" class="btn btn-sm btn-warning me-2" onclick="toggleCamera()">
+                                        <i class="bi bi-pause-fill"></i> Pause
+                                    </button>
+                                    <span class="badge bg-danger">LIVE</span>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="live-feed">
+                                    <img id="live-feed-img" src="/api/live-feed" width="100%" alt="Live Camera Feed">
+                                    <div class="live-badge">● LIVE</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Alerts -->
+                    <div class="col-lg-4 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="bi bi-bell me-2"></i>Recent Alerts</h5>
+                            </div>
+                            <div class="card-body" id="alerts-container" style="max-height: 400px; overflow-y: auto;">
+                                <p class="text-muted text-center">No recent alerts</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Violations -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Recent Violations</h5>
+                        <a href="/violations" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Worker</th>
+                                        <th>Violation</th>
+                                        <th>Zone</th>
+                                        <th>Status</th>
+                                        <th>Evidence</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="violations-table">
+                                    <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                console.log('Loading dashboard data...');
+                
+                // Load stats
+                const statsRes = await fetch('/api/stats');
+                const stats = await statsRes.json();
+                console.log('Stats received:', stats);
+                
+                document.getElementById('stat-today').textContent = stats.today || 0;
+                document.getElementById('stat-open').textContent = stats.open || 0;
+                document.getElementById('stat-total').textContent = stats.total || 0;
+
+                // Load workers count
+                const workersRes = await fetch('/api/workers');
+                const workers = await workersRes.json();
+                console.log('Workers count:', workers.length);
+                document.getElementById('stat-workers').textContent = workers.length || 0;
+
+                // Load violations
+                const violationsRes = await fetch('/api/violations?limit=10');
+                const violations = await violationsRes.json();
+                updateViolationsTable(violations);
+
+                // Load alerts
+                const alertsRes = await fetch('/api/alerts/recent');
+                const alerts = await alertsRes.json();
+                updateAlerts(alerts);
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        function updateViolationsTable(violations) {
+            const tbody = document.getElementById('violations-table');
+            if (!tbody) return;
+            
+            if (!violations || violations.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No violations recorded</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            violations.forEach(v => {
+                const tr = document.createElement('tr');
+                tr.className = 'violation-row';
+                
+                const timestamp = v.timestamp ? new Date(v.timestamp).toLocaleString() : 'N/A';
+                const workerName = v.worker_name || 'Unknown';
+                const violationType = v.violation_type ? v.violation_type.replace(/_/g, ' ').toUpperCase() : 'UNKNOWN';
+                const zone = v.zone || 'N/A';
+                const status = v.status || 'Open';
+                const imagePath = v.image_path;
+                const vid = v.id || 0;
+                
+                tr.innerHTML = `
+                    <td>${timestamp}</td>
+                    <td>${workerName}</td>
+                    <td><span class="badge bg-danger">${violationType}</span></td>
+                    <td>${zone}</td>
+                    <td><span class="status-${status.toLowerCase()}">${status}</span></td>
+                    <td>${imagePath ? `<a href="/static/uploads/${imagePath}" target="_blank" class="btn btn-sm btn-outline-secondary">View</a>` : '-'}</td>
+                    <td>${status === 'Open' ? `<button class="btn btn-sm btn-success" onclick="acknowledge(${vid})">Acknowledge</button>` : '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateAlerts(alerts) {
+            const container = document.getElementById('alerts-container');
+            if (!container) return;
+            
+            if (!alerts || alerts.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No recent alerts</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            alerts.forEach(a => {
+                const div = document.createElement('div');
+                div.className = 'alert alert-warning py-2 mb-2';
+                
+                const workerName = a.worker_name || 'Unknown';
+                const alertTime = a.alert_time ? new Date(a.alert_time).toLocaleTimeString() : 'N/A';
+                const alertMessage = a.alert_message || '';
+                
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <strong>${workerName}</strong>
+                        <small>${alertTime}</small>
+                    </div>
+                    <small>${alertMessage}</small>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        async function acknowledge(id) {
+            try {
+                await fetch(`/api/violations/${id}/acknowledge`, { method: 'POST' });
+                loadDashboardData();
+            } catch (error) {
+                console.error('Error acknowledging:', error);
+            }
+        }
+
+        // Camera toggle
+        async function toggleCamera() {
+            try {
+                const response = await fetch('/api/camera/toggle', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    const btn = document.getElementById('camera-toggle-btn');
+                    if (result.camera_enabled) {
+                        btn.innerHTML = '<i class="bi bi-pause-fill"></i> Pause';
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-warning');
+                    } else {
+                        btn.innerHTML = '<i class="bi bi-play-fill"></i> Resume';
+                        btn.classList.remove('btn-warning');
+                        btn.classList.add('btn-success');
+                    }
+                }
+            } catch (error) {
+                console.error('Error toggling camera:', error);
+            }
+        }
+
+        // Initial load and refresh every 3 seconds
+        loadDashboardData();
+        setInterval(loadDashboardData, 3000);
+    </script>
+</body>
+</html>
