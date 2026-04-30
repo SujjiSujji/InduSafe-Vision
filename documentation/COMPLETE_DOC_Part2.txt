@@ -1,0 +1,1258 @@
+CHAPTER 4: SOFTWARE ENVIRONMENT
+
+4.1 Operating System
+
+Supported Operating Systems:
+
+Windows 10/11 (64-bit):
+Advantages:
+- Native support for all components
+- Easy setup for non-technical users
+- Best webcam driver support
+- pyttsx3 SAPI5 integration works out-of-box
+
+Requirements:
+- Windows 10 version 1903 or later
+- .NET Framework 4.7.2+
+- Visual C++ Redistributable 2019
+- PowerShell 5.1+
+
+Setup Steps:
+1. Install Python 3.10 from python.org
+2. Check "Add Python to PATH" during installation
+3. Verify: python --version
+4. Install pip dependencies
+
+Linux (Ubuntu 20.04 LTS or later):
+Advantages:
+- Better performance for server deployments
+- Lower resource overhead
+- Native package management
+- Preferred for production environments
+
+Requirements:
+- Ubuntu 20.04 LTS or Debian 11+
+- Python 3.8+ with dev headers
+- GCC compiler toolchain
+- X11 libraries (for OpenCV GUI)
+
+Setup Commands:
+```bash
+sudo apt update
+sudo apt install python3.10 python3-pip python3-dev
+sudo apt install libatlas-base-dev libjasper-dev
+sudo apt install libqtgui4 libqt4-test
+pip3 install -r requirements.txt
+```
+
+macOS (Catalina 10.15+):
+Advantages:
+- Unix-based with user-friendly interface
+- Good for development
+- Native TTS support
+
+Requirements:
+- macOS Catalina (10.15) or later
+- Xcode Command Line Tools
+- Homebrew package manager
+- Python 3.10 via Homebrew
+
+Setup:
+```bash
+xcode-select --install
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+brew install python@3.10
+pip3 install -r requirements.txt
+```
+
+Recommendation:
+- Development: Windows 10/11 (easiest setup)
+- Production: Ubuntu 20.04 LTS (stability, performance)
+- Testing: All three platforms for compatibility verification
+
+4.2 Programming Language & Algorithms Used
+
+Programming Language: Python 3.10
+
+Why Python:
+✓ Extensive AI/ML library ecosystem
+✓ Simple syntax for rapid development
+✓ Strong community support
+✓ Cross-platform compatibility
+✓ Excellent C++ integration (OpenCV)
+✓ Mature web frameworks (Flask)
+
+Key Features Utilized:
+- Type hints for code clarity
+- Context managers (with statements)
+- Threading for concurrency
+- Decorators for routes
+- Data classes for structured data
+- Exception handling
+
+Core Algorithms:
+
+1. YOLOv8 Object Detection:
+
+Architecture:
+- Backbone: CSPDarknet with cross-stage partial connections
+- Neck: PAN-FPN (Path Aggregation Network + Feature Pyramid Network)
+- Head: Decoupled head with anchor-free detection
+- Loss Functions: CIoU loss, DFL (Distribution Focal Loss)
+
+Inference Process:
+```python
+# Load model
+model = YOLO('yolov8n.pt')
+
+# Preprocess frame
+frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+# Run inference
+results = model(frame, verbose=False)
+
+# Extract detections
+for result in results:
+    boxes = result.boxes
+    for box in boxes:
+        x1, y1, x2, y2 = box.xyxy[0]
+        confidence = box.conf[0]
+        class_id = int(box.cls[0])
+```
+
+Performance Optimization:
+- Nano model variant (YOLOv8n) for speed
+- Batch size = 1 for real-time
+- FP16 inference on GPU (optional)
+- Multi-threaded frame processing
+
+2. QR Code Detection (OpenCV):
+
+Algorithm: cv2.QRCodeDetector.detectAndDecodeMulti()
+
+Process:
+```python
+detector = cv2.QRCodeDetector()
+ret, decoded_info, points, _ = detector.detectAndDecodeMulti(frame)
+
+if ret and decoded_info:
+    for i, data in enumerate(decoded_info):
+        if data:
+            bbox = points[i]
+            # Extract bounding box coordinates
+            x = min([int(p[0]) for p in bbox])
+            y = min([int(p[1]) for p in bbox])
+            w = max([int(p[0]) for p in bbox]) - x
+            h = max([int(p[1]) for p in bbox]) - y
+```
+
+Error Correction: Reed-Solomon coding (Level M, 15% recovery capability)
+
+3. Spatial Matching Algorithm:
+
+Purpose: Associate detected persons with QR codes
+
+Algorithm:
+```python
+def match_worker(person_bbox, qr_codes):
+    v_center_x = (person_bbox[0] + person_bbox[2]) / 2
+    v_center_y = (person_bbox[1] + person_bbox[3]) / 2
+    
+    best_match = None
+    min_distance = float('inf')
+    
+    for qr in qr_codes:
+        qr_center_x = qr['x'] + qr['width'] / 2
+        qr_center_y = qr['y'] + qr['height'] / 2
+        
+        # Euclidean distance
+        distance = sqrt((v_center_x - qr_center_x)**2 + 
+                       (v_center_y - qr_center_y)**2)
+        
+        # Prefer QR inside person bbox
+        if is_inside(person_bbox, qr):
+            distance *= 0.5
+        
+        if distance < min_distance:
+            min_distance = distance
+            best_match = qr
+    
+    return best_match if min_distance < 300 else None
+```
+
+Complexity: O(n*m) where n=persons, m=QR codes
+
+4. Threshold Logic (False Positive Reduction):
+
+Consecutive Frame Counting:
+```python
+violation_counters[worker_key] += 1
+
+if violation_counters[worker_key] >= THRESHOLD:
+    # Confirmed violation
+    trigger_alert()
+    violation_counters[worker_key] = 0
+else:
+    # Wait for more frames
+    continue
+```
+
+Optimal Threshold: 3 frames (~100ms at 30 FPS)
+False Positive Reduction: ~70%
+
+5. Text-to-Speech (pyttsx3):
+
+Engine Initialization:
+```python
+engine = pyttsx3.init()
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[0].id)  # English voice
+engine.setProperty('rate', 150)  # Words per minute
+engine.setProperty('volume', 0.9)  # 0.0 to 1.0
+
+engine.say("Warning John Smith, Hard Hat Missing!")
+engine.runAndWait()
+```
+
+Platform Backends:
+- Windows: SAPI5 (Speech API)
+- Linux: eSpeak or Festival
+- macOS: NSSpeechSynthesizer
+
+4.3 Development Frameworks and Libraries
+
+Web Framework: Flask 3.0.0
+
+Purpose: RESTful API and web dashboard
+
+Key Components:
+- Blueprints for modular organization
+- Jinja2 templating engine
+- Werkzeug WSGI utilities
+- Built-in development server
+
+Usage Example:
+```python
+from flask import Flask, render_template, jsonify, request
+
+app = Flask(__name__)
+
+@app.route('/')
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/api/stats')
+def get_stats():
+    stats = db.get_statistics()
+    return jsonify(stats)
+
+@app.route('/api/workers', methods=['POST'])
+def create_worker():
+    data = request.json
+    worker_id = db.create_worker(data)
+    return jsonify({'success': True, 'id': worker_id}), 201
+```
+
+Extensions:
+- Flask-CORS (cross-origin requests)
+- Flask-SocketIO (WebSocket support, optional)
+
+Computer Vision: OpenCV 4.8.1.78
+
+Purpose: Image processing, camera interface, QR detection
+
+Key Functions:
+```python
+import cv2
+
+# Camera capture
+cap = cv2.VideoCapture(0)
+ret, frame = cap.read()
+
+# QR code detection
+detector = cv2.QRCodeDetector()
+data, bbox, _ = detector.detectAndDecode(frame)
+
+# Image manipulation
+cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+# Image saving
+cv2.imwrite('output.jpg', frame)
+```
+
+Deep Learning: Ultralytics YOLOv8 8.0.200
+
+Purpose: Person detection
+
+Installation:
+```bash
+pip install ultralytics
+```
+
+Usage:
+```python
+from ultralytics import YOLO
+
+model = YOLO('yolov8n.pt')
+results = model(image)
+
+for result in results:
+    boxes = result.boxes
+    for box in boxes:
+        cls = int(box.cls[0])
+        conf = float(box.conf[0])
+        bbox = box.xyxy[0].cpu().numpy()
+```
+
+Text-to-Speech: pyttsx3 2.90
+
+Purpose: Offline voice alerts
+
+Features:
+- Multiple voice support
+- Speech rate control
+- Volume adjustment
+- Cross-platform
+
+Usage:
+```python
+import pyttsx3
+
+engine = pyttsx3.init()
+engine.setProperty('rate', 150)
+engine.setProperty('volume', 0.9)
+engine.say("Alert message here")
+engine.runAndWait()
+```
+
+Numerical Computing: NumPy >=1.26.0
+
+Purpose: Array operations, mathematical computations
+
+Key Operations:
+```python
+import numpy as np
+
+# Array creation
+frame_array = np.array(image)
+
+# Distance calculation
+distance = np.sqrt((x1-x2)**2 + (y1-y2)**2)
+
+# Buffer management
+buffer = np.zeros((buffer_size, height, width, 3), dtype=np.uint8)
+```
+
+Image Processing: Pillow 10.0.1
+
+Purpose: QR code generation, image format conversion
+
+Usage:
+```python
+from PIL import Image
+import qrcode
+
+# Generate QR code
+qr = qrcode.QRCode(version=1, box_size=10, border=5)
+qr.add_data("WORKER:EMP001")
+qr.make(fit=True)
+img = qr.make_image(fill_color="black", back_color="white")
+img.save('qrcode.png')
+```
+
+Email: smtplib (Built-in)
+
+Purpose: SMTP email delivery
+
+Usage:
+```python
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+msg = MIMEMultipart('alternative')
+msg['Subject'] = 'Safety Report'
+msg['From'] = 'safety@company.com'
+msg['To'] = 'worker@company.com'
+
+html = "<html><body>Report content...</body></html>"
+msg.attach(MIMEText(html, 'html'))
+
+with smtplib.SMTP('smtp.gmail.com', 587) as server:
+    server.starttls()
+    server.login(username, password)
+    server.send_message(msg)
+```
+
+Database: sqlite3 (Built-in)
+
+Purpose: SQLite database operations
+
+Usage:
+```python
+import sqlite3
+
+conn = sqlite3.connect('indusafe.db')
+conn.row_factory = sqlite3.Row
+cursor = conn.cursor()
+
+cursor.execute('''
+    SELECT * FROM violations 
+    WHERE timestamp > ?
+    ORDER BY timestamp DESC
+''', (cutoff_date,))
+
+rows = cursor.fetchall()
+conn.close()
+```
+
+Additional Libraries:
+
+qrcode 7.4.2: QR code generation
+```bash
+pip install qrcode[pil]
+```
+
+threading (Built-in): Concurrent execution
+```python
+import threading
+
+detection_thread = threading.Thread(target=detection_loop)
+detection_thread.daemon = True
+detection_thread.start()
+```
+
+time (Built-in): Time-based operations
+```python
+import time
+
+time.sleep(0.033)  # 30 FPS delay
+current_time = time.time()  # Unix timestamp
+```
+
+signal (Built-in): Signal handling
+```python
+import signal
+
+def handler(sig, frame):
+    print("Shutting down...")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, handler)
+```
+
+4.4 Integrated Development Environments and Tools
+
+Primary IDE: Visual Studio Code (Recommended)
+
+Version: 1.85 or later
+
+Essential Extensions:
+1. Python (Microsoft) - IntelliSense, debugging
+2. Pylance - Type checking, code navigation
+3. Black Formatter - Code formatting
+4. GitLens - Git integration
+5. Jupyter - Notebook support (optional)
+6. Docker - Containerization (optional)
+
+Configuration (.vscode/settings.json):
+```json
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe",
+    "python.linting.enabled": true,
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true,
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true
+    }
+}
+```
+
+Alternative IDEs:
+
+PyCharm Professional:
+Advantages:
+- Full-featured Python IDE
+- Built-in database tools
+- Flask/Django support
+- Scientific mode
+
+Disadvantages:
+- Paid license required
+- Heavier resource usage
+
+Jupyter Notebook:
+Use Case: Experimentation, prototyping
+Advantage: Interactive development with visualization
+
+Development Tools:
+
+Git:
+Version: 2.40 or later
+Purpose: Version control
+Workflow:
+```bash
+git init
+git add .
+git commit -m "feat: implement feature"
+git push origin main
+```
+
+Package Management:
+pip: Python package installer
+```bash
+pip install -r requirements.txt
+pip freeze > requirements.txt
+```
+
+Virtual Environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+```
+
+Debugging Tools:
+
+pdb (Python Debugger):
+```python
+import pdb; pdb.set_trace()
+```
+
+VS Code Debugger:
+- Visual breakpoints
+- Watch expressions
+- Call stack inspection
+- Conditional breakpoints
+
+Testing Tools:
+
+unittest (Built-in):
+```python
+import unittest
+
+class TestDetection(unittest.TestCase):
+    def test_person_detection(self):
+        detector = PPEDetector()
+        result = detector.detect(test_frame)
+        self.assertGreater(len(result['persons']), 0)
+```
+
+pytest (Optional):
+```bash
+pip install pytest
+pytest tests/
+```
+
+Documentation Tools:
+
+Sphinx: Auto-generate API docs
+```bash
+pip install sphinx
+sphinx-quickstart
+```
+
+Markdown: README, inline comments
+
+Diagram Tools:
+
+Draw.io: Free online diagramming
+Lucidchart: Professional diagrams
+PlantUML: Text-to-UML generation
+
+4.5 GPU & Hardware Acceleration Support
+
+GPU Acceleration (Optional):
+
+NVIDIA GPU Setup:
+
+Requirements:
+- NVIDIA GPU (GTX 1060 or better recommended)
+- CUDA Toolkit 11.8
+- cuDNN 8.6+
+- NVIDIA Driver 520+
+
+Installation:
+```bash
+# Install PyTorch with CUDA support
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+
+# Install YOLOv8
+pip install ultralytics
+```
+
+Verification:
+```python
+import torch
+print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"CUDA version: {torch.version.cuda}")
+print(f"GPU: {torch.cuda.get_device_name(0)}")
+```
+
+YOLOv8 GPU Inference:
+```python
+from ultralytics import YOLO
+
+model = YOLO('yolov8n.pt')
+
+# Move model to GPU
+model.to('cuda')
+
+# Inference
+results = model(frame, device='cuda')
+```
+
+Performance Comparison:
+
+CPU Only (Intel i5-10th Gen):
+- Inference time: ~30-40ms per frame
+- FPS: 25-30
+- Memory: 1.4GB RAM
+
+GPU (NVIDIA GTX 1650):
+- Inference time: ~8-12ms per frame
+- FPS: 60-80 (limited by camera)
+- VRAM: ~500MB
+- Total system RAM: 1.2GB
+
+When to Use GPU:
+✓ Multi-camera deployments (>4 cameras)
+✓ Higher resolution processing (4K)
+✓ Additional computer vision tasks
+✓ Future multi-model deployments
+
+When CPU is Sufficient:
+✓ Single camera setup
+✓ Standard resolution (720p-1080p)
+✓ Basic person detection only
+✓ Cost-sensitive deployments
+
+Intel OpenVINO (Alternative):
+
+Purpose: Optimize inference on Intel hardware
+
+Installation:
+```bash
+pip install openvino-dev
+```
+
+Conversion:
+```bash
+mo --input_model yolov8n.onnx --output_dir openvino_models/
+```
+
+Inference:
+```python
+from openvino.runtime import Core
+
+ie = Core()
+model = ie.read_model(model='yolov8n.xml')
+compiled_model = ie.compile_model(model, "CPU")
+result = compiled_model([frame])
+```
+
+Benefits:
+- 2-3x speedup on Intel CPUs
+- No GPU required
+- Optimized for edge devices
+
+Apple Silicon (M1/M2):
+
+Metal Performance Shaders (MPS) acceleration:
+```python
+import torch
+
+if torch.backends.mps.is_available():
+    model.to('mps')
+    results = model(frame)
+```
+
+Performance: Similar to mid-range NVIDIA GPU
+
+4.6 Deployment Environment
+
+Development Environment:
+Structure:
+```
+indu_qoder/
+├── indusafe_sentinel/
+│   ├── app/
+│   ├── database/
+│   ├── static/
+│   ├── templates/
+│   ├── config.py
+│   └── run.py
+├── venv/
+└── requirements.txt
+```
+
+Command:
+```bash
+python run.py
+```
+
+Access: http://localhost:5000
+
+Production Deployment Options:
+
+Option 1: Gunicorn (Linux Production Server)
+
+Installation:
+```bash
+pip install gunicorn
+```
+
+Start Command:
+```bash
+gunicorn -w 4 -b 0.0.0.0:5000 run:app
+```
+
+Configuration (gunicorn.conf.py):
+```python
+bind = "0.0.0.0:5000"
+workers = 4
+worker_class = "sync"
+timeout = 120
+keepalive = 5
+accesslog = "/var/log/gunicorn/access.log"
+errorlog = "/var/log/gunicorn/error.log"
+loglevel = "info"
+```
+
+Systemd Service (/etc/systemd/system/indusafe.service):
+```ini
+[Unit]
+Description=InduSafe Sentinel
+After=network.target
+
+[Service]
+User=indusafe
+Group=www-data
+WorkingDirectory=/opt/indusafe_sentinel
+ExecStart=/opt/indusafe_sentinel/venv/bin/gunicorn -w 4 run:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and Start:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable indusafe
+sudo systemctl start indusafe
+sudo systemctl status indusafe
+```
+
+Option 2: Waitress (Windows Production)
+
+Installation:
+```bash
+pip install waitress
+```
+
+Start Command:
+```bash
+waitress-serve --port=5000 --host=0.0.0.0 run:app
+```
+
+Windows Service (using NSSM):
+```bash
+nssm install InduSafeSentinel
+nssm set InduSafeSentinel Application "C:\Python310\python.exe"
+nssm set InduSafeSentinel Arguments "run.py"
+nssm set InduSafeSentinel DisplayName "InduSafe Sentinel"
+nssm set InduSafeSentinel StartService SERVICE_AUTO_START
+nssm start InduSafeSentinel
+```
+
+Option 3: Docker Containerization
+
+Dockerfile:
+```dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application
+COPY . .
+
+# Expose port
+EXPOSE 5000
+
+# Run command
+CMD ["python", "run.py"]
+```
+
+Build and Run:
+```bash
+docker build -t indusafe-sentinel .
+docker run -p 5000:5000 -v $(pwd)/database:/app/database indusafe-sentinel
+```
+
+Docker Compose (docker-compose.yml):
+```yaml
+version: '3'
+services:
+  indusafe:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./database:/app/database
+      - ./static/uploads:/app/static/uploads
+    restart: unless-stopped
+```
+
+Cloud Deployment:
+
+AWS EC2:
+Instance Type: t3.medium (2 vCPU, 4GB RAM)
+AMI: Ubuntu 22.04 LTS
+Security Group: Allow port 5000
+Storage: 50GB GP2 SSD
+
+Heroku:
+Procfile: `web: gunicorn run:app`
+Deployment: `git push heroku main`
+Add-ons: Heroku Postgres (optional)
+
+Google Cloud Run:
+Containerize application
+Deploy: `gcloud run deploy`
+Auto-scaling enabled
+Pay-per-use pricing
+
+Reverse Proxy (Nginx):
+
+Configuration (/etc/nginx/sites-available/indusafe):
+```nginx
+server {
+    listen 80;
+    server_name indusafe.company.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /static {
+        alias /opt/indusafe_sentinel/static;
+        expires 30d;
+    }
+}
+```
+
+Enable:
+```bash
+sudo ln -s /etc/nginx/sites-available/indusafe /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+SSL/TLS (Let's Encrypt):
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d indusafe.company.com
+```
+
+4.7 Version Control and Collaboration
+
+Git Repository Structure:
+
+Repository Layout:
+```
+indu_qoder/
+├── .git/
+├── .gitignore
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── indusafe_sentinel/
+│   ├── app/
+│   ├── database/
+│   └── ...
+├── README.md
+├── requirements.txt
+└── LICENSE
+```
+
+.gitignore Contents:
+```gitignore
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+database/*.db
+static/uploads/*
+!static/uploads/.gitkeep
+*.log
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+```
+
+Branch Strategy (GitHub Flow):
+
+Main Branch: main (production-ready)
+Feature Branches: feature/description
+Bug Fix Branches: fix/description
+
+Workflow:
+```bash
+# Create feature branch
+git checkout -b feature/voice-alert-enhancement
+
+# Make changes and commit
+git add .
+git commit -m "feat: enhance voice alert with customizable messages"
+
+# Push to remote
+git push origin feature/voice-alert-enhancement
+
+# Create Pull Request on GitHub
+# After review and approval, merge to main
+```
+
+Commit Message Convention (Conventional Commits):
+
+Format:
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+Types:
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation changes
+- style: Code style (formatting)
+- refactor: Code restructuring
+- test: Adding tests
+- chore: Maintenance tasks
+
+Examples:
+```
+feat(detection): add threshold-based false positive reduction
+fix(email): resolve SMTP authentication timeout
+docs(readme): update installation instructions
+refactor(utils): extract common validation logic
+test(detector): add unit tests for person detection
+chore(deps): upgrade flask to version 3.0.0
+```
+
+Continuous Integration (GitHub Actions):
+
+.github/workflows/ci.yml:
+```yaml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest
+    
+    - name: Run tests
+      run: pytest tests/
+    
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+```
+
+Collaboration Tools:
+
+GitHub Projects:
+- Kanban board for task tracking
+- Issue tracking
+- Milestone management
+
+Code Review Process:
+1. Create Pull Request
+2. Assign reviewers
+3. Address feedback
+4. Pass CI checks
+5. Merge to main
+
+Documentation Versioning:
+Tag releases:
+```bash
+git tag -a v1.0.0 -m "Release version 1.0.0"
+git push origin v1.0.0
+```
+
+CHANGELOG.md:
+```markdown
+## [1.0.0] - 2024-02-12
+
+### Added
+- Initial release
+- YOLOv8 detection
+- QR code scanning
+- Voice alerts
+- Email reporting
+
+### Changed
+- Nothing yet
+
+### Fixed
+- Nothing yet
+```
+
+Team Collaboration:
+
+Shared Development Environment:
+- Use virtual environments
+- Consistent Python version (3.10)
+- Shared requirements.txt
+- Docker for consistency
+
+Communication:
+- GitHub Issues for bug reports
+- Discussions for questions
+- Pull Request comments for code review
+
+Knowledge Sharing:
+- README.md for setup instructions
+- Wiki for detailed documentation
+- Inline code comments
+
+
+CHAPTER 5: SYSTEM DESIGN
+
+5.1 Input Design
+
+Video Input:
+Source: USB webcam or IP camera
+Format: RGB video frames (BGR in OpenCV)
+Resolution: 640x480 (default), 1280x720, 1920x1080
+Frame Rate: 30 FPS target
+Interface: cv2.VideoCapture
+
+User Input (Web Dashboard):
+
+Worker Registration Form:
+Fields:
+- Name (text, required, max 100 chars)
+- Employee ID (text, required, unique)
+- Department (dropdown, default: "General")
+- Email (email format, optional)
+Validation:
+- Uniqueness check for employee ID
+- Email format validation
+Example:
+```json
+{
+  "name": "John Smith",
+  "employee_id": "EMP001",
+  "department": "Assembly",
+  "email": "john@company.com"
+}
+```
+
+Configuration Settings:
+Detection Parameters:
+- Confidence Threshold: 0.0-1.0 (default 0.5)
+- Violation Threshold: 1-10 (default 3)
+- Cooldown Period: 1-60 seconds (default 2)
+
+Alert Settings:
+- Voice Volume: 0-100% (default 90%)
+- Speech Rate: 100-200 wpm (default 150)
+- Enable/Disable toggle
+
+System Input (Automated):
+
+QR Code Data:
+Format: Text string
+Patterns: "WORKER:EMP001", "EMP001", "NAME:John"
+Max Length: 256 characters
+Error Correction: Level M (15%)
+
+Timestamps: ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
+
+File Uploads:
+
+Worker Photo (optional):
+Format: JPEG, PNG
+Max Size: 5 MB
+Min Resolution: 200x200 pixels
+
+Bulk Import (CSV):
+Format: Comma-separated values
+Columns: name, employee_id (required); department, email (optional)
+Encoding: UTF-8
+Max Rows: 1000
+
+API Inputs:
+
+RESTful Endpoints:
+POST /api/workers
+Content-Type: application/json
+Body:
+```json
+{
+  "name": "Alice Johnson",
+  "employee_id": "EMP003",
+  "qr_code": "EMP003",
+  "department": "Quality Control",
+  "email": "alice@company.com"
+}
+```
+
+Query Parameters:
+GET /api/violations?limit=50&zone=Main+Floor&status=Open
+Parameters: limit (default 100), offset (0), zone, status, date_from, date_to
+
+Input Validation:
+
+Client-Side (JavaScript):
+```javascript
+function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+```
+
+Server-Side (Python):
+```python
+from markupsafe import escape
+
+def sanitize_input(user_input):
+    return escape(user_input).strip()
+```
+
+SQL Injection Prevention:
+```python
+cursor.execute('SELECT * FROM workers WHERE employee_id = ?', [employee_id])
+```
+
+5.2 Output Design
+
+Visual Outputs (Dashboard):
+
+Live Camera Feed:
+Format: MJPEG stream
+Refresh: 30 FPS
+Overlays: Bounding boxes, worker names, timestamp, statistics
+
+Statistics Cards:
+- Total Violations (all-time)
+- Today's Violations
+- Open Violations
+- Active Workers
+
+Violation Table:
+Columns: Time, Worker, Type, Zone, Status, Actions
+Sorting: Chronological (newest first)
+Pagination: 10/25/50/100 per page
+Filtering: By zone, status, worker
+
+Auditory Outputs:
+
+Voice Alerts:
+Message: "Warning [Name], [Violation Type]!"
+Volume: 90% (adjustable)
+Rate: 150 wpm
+Duration: 2-3 seconds
+Cooldown: 2 seconds minimum
+
+Digital/File Outputs:
+
+Evidence Images:
+Naming: {Name}_{Violation}_{Timestamp}.jpg
+Example: John_Smith_hard_hat_missing_20240212_103045.jpg
+Format: JPEG, 85% quality
+Size: ~100-300 KB
+
+Database Records:
+Workers table, Violations table, Alerts table, Zones table
+
+Email Reports:
+
+Session Summary (Supervisor):
+Subject: "InduSafe Sentinel - Session Report (2024-02-12)"
+Content: Session stats, violation details table, top violators
+Format: HTML with inline CSS
+
+Individual Worker Report:
+Subject: "Safety Violation Report - John Smith"
+Content: Personalized warning, violation list, safety reminders
+Format: HTML
+
+API Outputs:
+
+JSON Responses:
+GET /api/stats
+```json
+{
+  "total": 1247,
+  "today": 23,
+  "open": 15,
+  "zones": [{"zone": "Main Floor", "count": 89}],
+  "top_violators": [{"name": "John Smith", "count": 12}]
+}
+```
+
+Streaming:
+GET /api/live-feed
+Content-Type: multipart/x-mixed-replace; boundary=frame
+Data: Continuous JPEG frames
+
+Printed Outputs:
+
+Violation Report (PDF):
+Layout: Letter size, portrait
+Sections: Header, summary, findings table, appendices
+
+Worker Badge:
+Size: CR80 (3.375" x 2.125")
+Content: Photo, name, ID, QR code, department
